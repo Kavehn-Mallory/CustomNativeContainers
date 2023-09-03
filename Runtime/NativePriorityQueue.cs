@@ -53,7 +53,6 @@ namespace BonnFireGames.CustomNativeContainers
                 handle.Free();
             }*/
             
-            //lets either get a native array or lets get the custom memory the same way. that would be fine as well
             
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             // Create the AtomicSafetyHandle and DisposeSentinel
