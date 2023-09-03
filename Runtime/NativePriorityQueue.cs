@@ -53,6 +53,7 @@ namespace BonnFireGames.CustomNativeContainers
                 handle.Free();
             }*/
             
+            
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             // Create the AtomicSafetyHandle and DisposeSentinel
             m_Safety = AtomicSafetyHandle.Create();
