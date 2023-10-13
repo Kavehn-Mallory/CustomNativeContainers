@@ -27,9 +27,8 @@ namespace BonnFireGames.CustomNativeContainers
     [NativeContainerSupportsDeallocateOnJobCompletion]
     //[NativeContainerSupportsMinMaxWriteRestriction]
     [NativeContainer]
-    public unsafe struct NativePriorityQueue<T> : INativeDisposable where T : unmanaged, IComparable
+    public unsafe struct NativePriorityQueue<T> : INativeDisposable where T : unmanaged, IComparable<T>
     {
-
         // Raw pointers aren't usually allowed inside structures that are passed to jobs, but because it's protected
         // with the safety system, you can disable that restriction for it
         [NativeDisableUnsafePtrRestriction]
