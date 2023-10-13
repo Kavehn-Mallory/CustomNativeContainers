@@ -1,6 +1,6 @@
 {
   "name": "com.bonnfiregames.customnativecontainers",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "displayName": "Custom Native Containers",
   "description": "This package contains additional native containers and helper methods",
   "unity": "2023.1",
@@ -11,8 +11,8 @@
   "dependencies": {
     "com.unity.burst": "1.8.8",
     "com.unity.collections": "1.2.4"
- },
- "keywords": [
+  },
+  "keywords": [
     "NativeContainer",
     "Collections",
     "Burst"

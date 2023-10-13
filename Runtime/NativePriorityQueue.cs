@@ -1,14 +1,31 @@
 using System;
+using System.Collections;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 
 namespace BonnFireGames.CustomNativeContainers
 {
+
+
+    /*public unsafe struct NativePriorityQueue<T, TU> : INativeDisposable where T : unmanaged where TU : IComparer
+    {
+        public void Dispose()
+        {
+            // TODO release managed resources here
+        }
+
+        public JobHandle Dispose(JobHandle inputDeps)
+        {
+            throw new NotImplementedException();
+        }
+    }*/
+    
     [NativeContainerSupportsDeallocateOnJobCompletion]
-    [NativeContainerSupportsMinMaxWriteRestriction]
+    //[NativeContainerSupportsMinMaxWriteRestriction]
     [NativeContainer]
     public unsafe struct NativePriorityQueue<T> : INativeDisposable where T : unmanaged, IComparable
     {
@@ -25,7 +42,7 @@ namespace BonnFireGames.CustomNativeContainers
         private AtomicSafetyHandle m_Safety;
         
         // Statically register this type with the safety system, using a name derived from the type itself
-        internal static readonly int s_staticSafetyId = AtomicSafetyHandle.NewStaticSafetyId<NativePriorityQueue<T>>();
+        internal static int s_staticSafetyId;
 #endif
         
 
@@ -41,26 +58,12 @@ namespace BonnFireGames.CustomNativeContainers
             int totalSize = UnsafeUtility.SizeOf<T>() * m_capacity;
             m_Buffer = UnsafeUtility.MallocTracked(totalSize, UnsafeUtility.AlignOf<T>(), m_AllocatorLabel, 1);
             
-            
-            // Copy the data from the array into the buffer
-            /*var handle = GCHandle.Alloc(initialItems, GCHandleType.Pinned);
-            try
-            {
-                UnsafeUtility.MemCpy(m_Buffer, handle.AddrOfPinnedObject().ToPointer(), totalSize);
-            }
-            finally
-            {
-                handle.Free();
-            }*/
-            
-            
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             // Create the AtomicSafetyHandle and DisposeSentinel
             m_Safety = AtomicSafetyHandle.Create();
-
-            // Set the safety ID on the AtomicSafetyHandle so that error messages describe this container type properly.
-            AtomicSafetyHandle.SetStaticSafetyId(ref m_Safety, s_staticSafetyId);
-        
+            
+            InitStaticSafetyId(ref m_Safety);
+            
             // Automatically bump the secondary version any time this container is scheduled for writing in a job
             AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
 
@@ -68,6 +71,14 @@ namespace BonnFireGames.CustomNativeContainers
             if (UnsafeUtility.IsNativeContainerType<T>()) 
                 AtomicSafetyHandle.SetNestedContainer(m_Safety, true);
 #endif
+        }
+        
+        [BurstDiscard]
+        private static void InitStaticSafetyId(ref AtomicSafetyHandle handle)
+        {
+            if (s_staticSafetyId == 0)
+                s_staticSafetyId = AtomicSafetyHandle.NewStaticSafetyId<NativePriorityQueue<T>>();
+            AtomicSafetyHandle.SetStaticSafetyId(ref handle, s_staticSafetyId);
         }
         
         
@@ -102,10 +113,46 @@ namespace BonnFireGames.CustomNativeContainers
                 return m_capacity;
             }
         }
+        
+        public unsafe bool IsCreated
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (IntPtr) this.m_Buffer != IntPtr.Zero;
+        }
 
         public JobHandle Dispose(JobHandle inputDeps)
         {
-            throw new NotImplementedException();
+            //Copied from NativeList. Might help to understand in the future
+            // [DeallocateOnJobCompletion] is not supported, but we want the deallocation
+            // to happen in a thread. DisposeSentinel needs to be cleared on main thread.
+            // AtomicSafetyHandle can be destroyed after the job was scheduled (Job scheduling
+            // will check that no jobs are writing to the container).
+            
+            
+            //code from NativeArray. Seems to be pretty thorough 
+            if (this.m_AllocatorLabel != Allocator.None && !AtomicSafetyHandle.IsDefaultValue(in this.m_Safety))
+                AtomicSafetyHandle.CheckExistsAndThrow(in this.m_Safety);
+            if (!this.IsCreated)
+                return inputDeps;
+            if (this.m_AllocatorLabel >= Allocator.FirstUserIndex)
+                throw new InvalidOperationException("The NativePriorityQueue can not be Disposed because it was allocated with a custom allocator, use CollectionHelper.Dispose in com.unity.collections package.");
+            if (this.m_AllocatorLabel > Allocator.None)
+            {
+                JobHandle jobHandle = new NativePriorityQueueDisposeJob()
+                {
+                    Data = new NativePriorityQueueDispose()
+                    {
+                        m_Buffer = this.m_Buffer,
+                        m_AllocatorLabel = this.m_AllocatorLabel,
+                        m_Safety = this.m_Safety
+                    }
+                }.Schedule<NativePriorityQueueDisposeJob>(inputDeps);
+                AtomicSafetyHandle.Release(this.m_Safety);
+                this.m_Buffer = (void*) null;
+                this.m_AllocatorLabel = Allocator.Invalid;
+                return jobHandle;
+            }
+            this.m_Buffer = (void*) null;
+            return inputDeps;
         }
 
         public void Dispose()
@@ -160,7 +207,6 @@ namespace BonnFireGames.CustomNativeContainers
 
         public T Dequeue()
         {
-            //todo call TryDequeue here and call an error method if it does not work!
             if (!TryDequeue(out var item))
             {
                 ThrowEmpty();
@@ -191,7 +237,6 @@ namespace BonnFireGames.CustomNativeContainers
 
                 Swap(0, m_Length);
                 
-                //todo check if this is correct. I think we need to perform a sift down from the top which will move the last element back all the way down through the heap
                 SiftDown(0);
                 
                 return true;

@@ -1,6 +1,12 @@
-﻿using BonnFireGames.CustomNativeContainers;
+﻿using System;
+using BonnFireGames.CustomNativeContainers;
 using NUnit.Framework;
+using Unity.Burst;
 using Unity.Collections;
+using Unity.Jobs;
+using UnityEditor.VersionControl;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Tests.Editor
 {
@@ -97,9 +103,70 @@ namespace Tests.Editor
             Assert.IsTrue(queue.Dequeue() == 17);
             Assert.IsTrue(queue.Dequeue() == 25);
         }
+
         
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
         
+        [NUnit.Framework.Test]
+        public void PriorityQueue_ReadFromQueueWhileBeingWrittenTo_ThrowsInvalidOperationException()
+        {
+            var queue = new NativePriorityQueue<int>(Allocator.Temp, 2);
+            queue.Enqueue(4);
+            queue.Enqueue(25);
+
+            var writeJob = new PriorityWriteJob
+            {
+                WriteToQueue = queue
+            };
+            
+            var handle = writeJob.Schedule();
+            Assert.Throws<InvalidOperationException>(() =>
+            {
+                queue.Peek();
+            });
+            
+            
+            handle.Complete();
+            queue.Dispose();
+        }
 
 
+        [Test]
+        public void PriorityQueue_DeallocatedPriorityQueueOnJobCompletion_ShouldBeDeallocated()
+        {
+            var queue = new NativePriorityQueue<int>(Allocator.Temp, 2);
+            queue.Enqueue(4);
+            queue.Enqueue(25);
+
+            var writeJob = new PriorityWriteJob
+            {
+                WriteToQueue = queue
+            };
+            
+            var handle = writeJob.Schedule();
+
+            queue.Dispose(handle);
+            
+            
+            handle.Complete();
+            
+            Assert.IsFalse(queue.IsCreated);
+        }
+        
+        
+        #endif
+        
+        
+        private struct PriorityWriteJob : IJob
+        {
+            
+            public NativePriorityQueue<int> WriteToQueue;
+           
+            [BurstCompile]
+            public void Execute()
+            {
+                WriteToQueue.Enqueue(7);
+            }
+        }
     }
 }
