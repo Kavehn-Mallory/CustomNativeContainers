@@ -1,6 +1,6 @@
 {
   "name": "com.bonnfiregames.customnativecontainers",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "displayName": "Custom Native Containers",
   "description": "This package contains additional native containers and helper methods",
   "unity": "2023.1",

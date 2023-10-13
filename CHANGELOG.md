@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2023-10-13
+
+## Changed
+
+- Changed requirement for type T of NativePriorityQueue<T> from unmanaged to struct to prevent burst error
+
 ## [1.0.3] - 2023-10-13
 
 ## Changed

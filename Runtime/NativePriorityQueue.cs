@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Unity.Burst;
@@ -11,7 +12,7 @@ namespace BonnFireGames.CustomNativeContainers
 {
 
 
-    /*public unsafe struct NativePriorityQueue<T, TU> : INativeDisposable where T : unmanaged where TU : IComparer
+    /*public unsafe struct NativePriorityQueue<T, TU> : INativeDisposable where T : struct where TU : IComparer<T>
     {
         public void Dispose()
         {
@@ -27,7 +28,7 @@ namespace BonnFireGames.CustomNativeContainers
     [NativeContainerSupportsDeallocateOnJobCompletion]
     //[NativeContainerSupportsMinMaxWriteRestriction]
     [NativeContainer]
-    public unsafe struct NativePriorityQueue<T> : INativeDisposable where T : unmanaged, IComparable<T>
+    public unsafe struct NativePriorityQueue<T> : INativeDisposable where T : struct, IComparable<T>
     {
         // Raw pointers aren't usually allowed inside structures that are passed to jobs, but because it's protected
         // with the safety system, you can disable that restriction for it
