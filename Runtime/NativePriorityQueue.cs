@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -7,6 +6,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
+using Unity.Mathematics;
 
 namespace BonnFireGames.CustomNativeContainers
 {
@@ -25,21 +25,20 @@ namespace BonnFireGames.CustomNativeContainers
         }
     }*/
     
-    [NativeContainerSupportsDeallocateOnJobCompletion]
+    //[NativeContainerSupportsDeallocateOnJobCompletion]
     //[NativeContainerSupportsMinMaxWriteRestriction]
     [NativeContainer]
-    public unsafe struct NativePriorityQueue<T> : INativeDisposable where T : struct, IComparable<T>
+    [BurstCompatible(GenericTypeArguments = new [] { typeof(int) })]
+    public unsafe struct NativePriorityQueue<T> : INativeDisposable where T : unmanaged, IComparable<T>
     {
         // Raw pointers aren't usually allowed inside structures that are passed to jobs, but because it's protected
         // with the safety system, you can disable that restriction for it
-        [NativeDisableUnsafePtrRestriction]
-        internal void* m_Buffer;
-        internal int m_Length;
-        internal int m_capacity;
-        internal Allocator m_AllocatorLabel;
+        //[NativeDisableUnsafePtrRestriction] internal void* m_Buffer;
+        [NativeDisableUnsafePtrRestriction] internal NativePriorityQueueData<T>* m_Buffer;
+        internal AllocatorManager.AllocatorHandle AllocatorHandle;
         
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-        private AtomicSafetyHandle m_Safety;
+        internal AtomicSafetyHandle m_Safety;
         
         // Statically register this type with the safety system, using a name derived from the type itself
         internal static int s_staticSafetyId;
@@ -47,16 +46,13 @@ namespace BonnFireGames.CustomNativeContainers
         
 
         
-        public NativePriorityQueue(Allocator allocator, int capacity = 16)
+        
+        public NativePriorityQueue(AllocatorManager.AllocatorHandle allocator, int capacity = 16)
         {
-            m_capacity = capacity;
-            m_AllocatorLabel = allocator;
-            m_Length = 0;
+            AllocatorHandle = allocator.ToAllocator;
             
             
-            // Calculate the size of the initial buffer in bytes, and allocate it
-            int totalSize = UnsafeUtility.SizeOf<T>() * m_capacity;
-            m_Buffer = UnsafeUtility.MallocTracked(totalSize, UnsafeUtility.AlignOf<T>(), m_AllocatorLabel, 1);
+            NativePriorityQueueData<T>.AllocateQueue(ref allocator, capacity, out m_Buffer);
             
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             // Create the AtomicSafetyHandle and DisposeSentinel
@@ -81,12 +77,7 @@ namespace BonnFireGames.CustomNativeContainers
             AtomicSafetyHandle.SetStaticSafetyId(ref handle, s_staticSafetyId);
         }
         
-        
-        private int Parent(int i) => (i - 1) / 2;
-        private int LeftChild(int i) => (2 * i) + 1;
-        private int RightChild(int i) => (2 * i) + 2;
-        
-        public int Count
+        public int Length
         {
             get
             {
@@ -96,7 +87,7 @@ namespace BonnFireGames.CustomNativeContainers
                 // or if the native container has been disposed
                 AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
 #endif
-                return m_Length;
+                return m_Buffer->Length;
             }
         }
         
@@ -110,14 +101,16 @@ namespace BonnFireGames.CustomNativeContainers
                 // or if the native container has been disposed
                 AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
 #endif
-                return m_capacity;
+                return m_Buffer->Capacity;
             }
         }
         
         public unsafe bool IsCreated
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (IntPtr) this.m_Buffer != IntPtr.Zero;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)] get => this.m_Buffer != null;
         }
+
+        public unsafe bool IsEmpty => !IsCreated || Length <= 0;
 
         public JobHandle Dispose(JobHandle inputDeps)
         {
@@ -127,82 +120,79 @@ namespace BonnFireGames.CustomNativeContainers
             // AtomicSafetyHandle can be destroyed after the job was scheduled (Job scheduling
             // will check that no jobs are writing to the container).
             
-            
             //code from NativeArray. Seems to be pretty thorough 
-            if (this.m_AllocatorLabel != Allocator.None && !AtomicSafetyHandle.IsDefaultValue(in this.m_Safety))
+            if (this.AllocatorHandle.ToAllocator != Allocator.None && !AtomicSafetyHandle.IsDefaultValue(in this.m_Safety))
                 AtomicSafetyHandle.CheckExistsAndThrow(in this.m_Safety);
             if (!this.IsCreated)
                 return inputDeps;
-            if (this.m_AllocatorLabel >= Allocator.FirstUserIndex)
+            if (this.AllocatorHandle.ToAllocator >= Allocator.FirstUserIndex)
                 throw new InvalidOperationException("The NativePriorityQueue can not be Disposed because it was allocated with a custom allocator, use CollectionHelper.Dispose in com.unity.collections package.");
-            if (this.m_AllocatorLabel > Allocator.None)
+            if (this.AllocatorHandle.ToAllocator > Allocator.None)
             {
-                JobHandle jobHandle = new NativePriorityQueueDisposeJob()
+                JobHandle jobHandle = new NativePriorityQueueDisposeJob<T>()
                 {
-                    Data = new NativePriorityQueueDispose()
+                    Data = new NativePriorityQueueDispose<T>()
                     {
-                        m_Buffer = this.m_Buffer,
-                        m_AllocatorLabel = this.m_AllocatorLabel,
+                        Data = this.m_Buffer,
+                        AllocatorHandle = this.AllocatorHandle,
                         m_Safety = this.m_Safety
                     }
-                }.Schedule<NativePriorityQueueDisposeJob>(inputDeps);
-                AtomicSafetyHandle.Release(this.m_Safety);
-                this.m_Buffer = (void*) null;
-                this.m_AllocatorLabel = Allocator.Invalid;
+                }.Schedule<NativePriorityQueueDisposeJob<T>>(inputDeps);
+                
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            AtomicSafetyHandle.Release(m_Safety);
+#endif
+                this.m_Buffer = (NativePriorityQueueData<T>*) null;
+                this.AllocatorHandle = Allocator.Invalid;
                 return jobHandle;
             }
-            this.m_Buffer = (void*) null;
+            this.m_Buffer = (NativePriorityQueueData<T>*) null;
             return inputDeps;
         }
 
+        [WriteAccessRequired]
         public void Dispose()
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+/*#if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckDeallocateAndThrow(m_Safety);
             AtomicSafetyHandle.Release(m_Safety);
 #endif
             UnsafeUtility.FreeTracked(m_Buffer, m_AllocatorLabel);
             m_Buffer = null;
-            m_capacity = 0;
-            m_Length = 0;
+            m_Capacity = 0;
+            m_Length = 0;*/
+            
+            if (this.AllocatorHandle.ToAllocator != Allocator.None && !AtomicSafetyHandle.IsDefaultValue(in this.m_Safety))
+                AtomicSafetyHandle.CheckExistsAndThrow(in this.m_Safety);
+            if (!this.IsCreated)
+                return;
+            if (this.AllocatorHandle.ToAllocator == Allocator.Invalid)
+                throw new InvalidOperationException("The NativeArray can not be Disposed because it was not allocated with a valid allocator.");
+            if (this.AllocatorHandle.ToAllocator >= Allocator.FirstUserIndex)
+                throw new InvalidOperationException("The NativeArray can not be Disposed because it was allocated with a custom allocator, use CollectionHelper.Dispose in com.unity.collections package.");
+            if (this.AllocatorHandle.ToAllocator > Allocator.None)
+            {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                AtomicSafetyHandle.CheckDeallocateAndThrow(m_Safety);
+                AtomicSafetyHandle.Release(m_Safety);
+#endif
+                NativePriorityQueueData<T>.DeallocateQueue(m_Buffer, AllocatorHandle);
+                this.AllocatorHandle = Allocator.Invalid;
+            }
+            this.m_Buffer = (NativePriorityQueueData<T>*) null;
 
         }
-
+        
         public void Enqueue(T value)
         {
-            if (m_Length < m_capacity)
-            {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-                // Check that you can write to the native container right now.
-                AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
+            // Check that you can modify (write to) the native container right now, and if so, bump the secondary version so that
+            // any views are invalidated, because you are going to change the size and pointer to the buffer
+            CheckRead();
+            AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(m_Safety);
 #endif
-                UnsafeUtility.WriteArrayElement(m_Buffer, m_Length, value);
-            }
-            else
-            {
-                //Increase size of array -> allocate new memory, add elements to it, then continue.
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-                // Check that you can modify (write to) the native container right now, and if so, bump the secondary version so that
-                // any views are invalidated, because you are going to change the size and pointer to the buffer
-                AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(m_Safety);
-#endif
-                //todo check if this is correct
-                m_capacity *= 2;
-                
-                int totalSize = UnsafeUtility.SizeOf<T>() * m_capacity;
-                var newBuffer = UnsafeUtility.MallocTracked(totalSize, UnsafeUtility.AlignOf<T>(), m_AllocatorLabel, 1);
-                
-                UnsafeUtility.MemCpy(newBuffer, m_Buffer, UnsafeUtility.SizeOf<T>() * m_Length);
-                UnsafeUtility.FreeTracked(m_Buffer, m_AllocatorLabel);
-                m_Buffer = newBuffer;
-                UnsafeUtility.WriteArrayElement(m_Buffer, m_Length, value);
+            m_Buffer->Enqueue(value);
 
-            }
-            m_Length++;
-            
-            
-            SiftUp(m_Length - 1);
-            
         }
 
         public T Dequeue()
@@ -214,95 +204,54 @@ namespace BonnFireGames.CustomNativeContainers
             return item;
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-        private static void ThrowEmpty()
-        {
-            throw new InvalidOperationException("Trying to read from an empty queue.");
-        }
-
         public T Peek()
         {
             CheckRead();
-            return UnsafeUtility.ReadArrayElement<T>(m_Buffer, 0);
+            return m_Buffer->Peek();
         }
 
         public bool TryDequeue(out T item)
         {
             CheckRead();
-            if (m_Length > 0)
+            if (!IsEmpty)
             {
                 CheckWrite();
-                m_Length--;
-                item = UnsafeUtility.ReadArrayElement<T>(m_Buffer, 0);
-
-                Swap(0, m_Length);
-                
-                SiftDown(0);
-                
+                m_Buffer->TryDequeue(out item);
                 return true;
             }
             item = default(T);
             return false;
         }
 
-        private void SiftUp(int i)
+        /// <summary>
+        /// Tries to find the index of a specific element using the given IComparer&lt;T&gt;. If no IComparer&amp;lt;T&amp;gt; is specified, the default comparer will be used
+        /// </summary>
+        /// <param name="element"></param>
+        /// <param name="comparer"></param>
+        /// <returns></returns>
+        public int FindElement(T element, IComparer<T> comparer = null)
         {
             CheckRead();
-            var currentValue = UnsafeUtility.ReadArrayElement<T>(m_Buffer, i);
-            var parentIndex = Parent(i);
-            var parent = UnsafeUtility.ReadArrayElement<T>(m_Buffer, parentIndex);
-            while (i > 0 && currentValue.CompareTo(parent) < 0)
-            {
-                Swap(i, parentIndex);
-                i = parentIndex;
-                parentIndex = Parent(i);
-                parent = UnsafeUtility.ReadArrayElement<T>(m_Buffer, parentIndex);
-                
-            }
+            return m_Buffer->FindElement(element, comparer);
         }
 
-        private void SiftDown(int i)
+        public void ReplaceElement(int index, T newElement)
         {
-            var maxIndex = i;
-            while (true)
-            {
-                CheckRead();
+            CheckRead();
+            CheckWrite();
 
-                var leftChildIndex = LeftChild(i);
-                var rightChildIndex = RightChild(i);
-                
-                if (leftChildIndex < m_Length && this[maxIndex].CompareTo(this[leftChildIndex]) > 0)
-                {
-                    maxIndex = leftChildIndex;
-                }
-                
-                if (rightChildIndex < m_Length && this[maxIndex].CompareTo(this[rightChildIndex]) > 0)
-                {
-                    maxIndex = rightChildIndex;
-                }
-
-                if (i != maxIndex)
-                {
-                    Swap(i, maxIndex);
-                    i = maxIndex;
-                    continue;
-                }
-
-                break;
-            }
+            m_Buffer->ReplaceElement(index, newElement);
         }
 
-        private void Swap(int x, int y)
+        
+        
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        private static void ThrowEmpty()
         {
-            if (x != y)
-            {
-                CheckWrite();
-                var xElement = UnsafeUtility.ReadArrayElement<T>(m_Buffer, x);
-                this[x] = this[y];
-                this[y] = xElement;
-            }
-            
+            throw new InvalidOperationException("Trying to read from an empty queue.");
         }
+        
+        
 
         
 
@@ -322,11 +271,6 @@ namespace BonnFireGames.CustomNativeContainers
 #endif
         }
         
-        private T this[int index]
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)] get => UnsafeUtility.ReadArrayElement<T>(m_Buffer, index);
-            [WriteAccessRequired, MethodImpl(MethodImplOptions.AggressiveInlining)] set => UnsafeUtility.WriteArrayElement(m_Buffer, index, value);
-        }
         
     }
 

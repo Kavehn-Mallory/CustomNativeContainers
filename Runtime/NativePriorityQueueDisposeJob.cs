@@ -1,10 +1,13 @@
-﻿using Unity.Jobs;
+﻿using System;
+using Unity.Collections;
+using Unity.Jobs;
 
 namespace BonnFireGames.CustomNativeContainers
 {
-    internal struct NativePriorityQueueDisposeJob : IJob
+    [BurstCompatible(GenericTypeArguments = new[] { typeof(int) })]
+    internal struct NativePriorityQueueDisposeJob<T> : IJob where T : unmanaged, IComparable<T>
     {
-        internal NativePriorityQueueDispose Data;
+        internal NativePriorityQueueDispose<T> Data;
 
         public void Execute() => this.Data.Dispose();
     }
