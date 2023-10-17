@@ -235,6 +235,24 @@ namespace BonnFireGames.CustomNativeContainers
             return m_Buffer->FindElement(element, comparer);
         }
 
+        public bool Contains(T element, IComparer<T> comparer = null)
+        {
+            return FindElement(element, comparer) >= 0;
+        }
+        
+        public bool Contains(T element, out T existingElement, IComparer<T> comparer = null)
+        {
+            var index = FindElement(element, comparer);
+            if (index >= 0)
+            {
+                existingElement = this[index];
+                return true;
+            }
+
+            existingElement = default;
+            return false;
+        }
+
         public void ReplaceElement(int index, T newElement)
         {
             CheckRead();
@@ -242,9 +260,32 @@ namespace BonnFireGames.CustomNativeContainers
 
             m_Buffer->ReplaceElement(index, newElement);
         }
+        
+        /// <summary>
+        /// Gets the element at the specified index. Throws an IndexOutOfRangeException if the index is below zero or exceeds the maximum index
+        /// </summary>
+        /// <param name="index"></param>
+        public T this[int index]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if(!m_Buffer->GetElement(index, out var element))
+                {
+                    ThrowIndexOutOfRange(index);
+                }
+                return element;
+            }
+            [WriteAccessRequired, MethodImpl(MethodImplOptions.AggressiveInlining)] set => m_Buffer->ReplaceElement(index, value);
+        }
 
-        
-        
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        private static void ThrowIndexOutOfRange(int index)
+        {
+            throw new IndexOutOfRangeException($"The index {index} is out of the queue's range");
+        }
+
+
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         private static void ThrowEmpty()
         {

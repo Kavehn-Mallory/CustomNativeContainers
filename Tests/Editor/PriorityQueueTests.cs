@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using BonnFireGames.CustomNativeContainers;
 using NUnit.Framework;
 using Unity.Burst;
@@ -167,6 +168,146 @@ namespace Tests.Editor
             
             Assert.AreEqual(1, elementIndex);
         }
+        
+        [Test]
+        public void PriorityQueue_GetElement_ElementIsReturned()
+        {
+            var queue = new NativePriorityQueue<int>(Allocator.Temp, 2);
+            queue.Enqueue(4);
+            queue.Enqueue(25);
+
+            var element = queue[1];
+            
+            
+            Assert.AreEqual(25, element);
+        }
+        
+        [Test]
+        public void PriorityQueue_Contains_ElementIsReturned()
+        {
+            var queue = new NativePriorityQueue<int>(Allocator.Temp, 2);
+            queue.Enqueue(4);
+            queue.Enqueue(25);
+
+            Assert.IsTrue(queue.Contains(25, out var element));
+            
+            
+            Assert.AreEqual(25, element);
+        }
+        
+        [Test]
+        public void PriorityQueue_Contains_ElementDoesNotExist()
+        {
+            var queue = new NativePriorityQueue<int>(Allocator.Temp, 2);
+            queue.Enqueue(4);
+            queue.Enqueue(25);
+
+            Assert.IsFalse(queue.Contains(5, out var element));
+            
+            
+            Assert.AreEqual(default(int), element);
+        }
+        
+        [Test]
+        public void PriorityQueue_Contains_ReturnsTrue()
+        {
+            var queue = new NativePriorityQueue<int>(Allocator.Temp, 2);
+            queue.Enqueue(4);
+            queue.Enqueue(25);
+
+            Assert.IsTrue(queue.Contains(25));
+            
+        }
+        
+        [Test]
+        public void PriorityQueue_Contains_ReturnsFalse()
+        {
+            var queue = new NativePriorityQueue<int>(Allocator.Temp, 2);
+            queue.Enqueue(4);
+            queue.Enqueue(25);
+
+            Assert.IsFalse(queue.Contains(5));
+
+        }
+        
+        [Test]
+        public void PriorityQueue_ContainsWithCustomComparison_ElementDoesNotExist_ReturnsFalse()
+        {
+            var queue = new NativePriorityQueue<CustomDataStruct>(Allocator.Temp, 2);
+            queue.Enqueue(new CustomDataStruct
+            {
+                Priority = 4,
+                AdditionalData = false
+            });
+            queue.Enqueue(new CustomDataStruct
+            {
+                Priority = 25,
+                AdditionalData = false
+            });
+
+            var customComparisonStruct = new CustomComparisonStruct();
+            
+            var lookingFor = new CustomDataStruct
+            {
+                Priority = 4,
+                AdditionalData = true
+            };
+            
+            Assert.IsFalse(queue.Contains(lookingFor, customComparisonStruct));
+        }
+        
+        [Test]
+        public void PriorityQueue_ContainsWithCustomComparison_ElementIsReturned()
+        {
+            var queue = new NativePriorityQueue<CustomDataStruct>(Allocator.Temp, 2);
+            queue.Enqueue(new CustomDataStruct
+            {
+                Priority = 4,
+                AdditionalData = false
+            });
+            queue.Enqueue(new CustomDataStruct
+            {
+                Priority = 25,
+                AdditionalData = false
+            });
+
+            var customComparisonStruct = new CustomComparisonStruct();
+            
+            var lookingFor = new CustomDataStruct
+            {
+                Priority = 4,
+                AdditionalData = false
+            };
+            
+            Assert.IsTrue(queue.Contains(lookingFor, out var element, customComparisonStruct));
+            
+            Assert.AreEqual(lookingFor.Priority, element.Priority);
+            Assert.AreEqual(lookingFor.AdditionalData, element.AdditionalData);
+        }
+
+        private struct CustomComparisonStruct : IComparer<CustomDataStruct>
+        {
+            public int Compare(CustomDataStruct x, CustomDataStruct y)
+            {
+                var value = x.AdditionalData.CompareTo(y.AdditionalData);
+                if (value == 0)
+                {
+                    return x.CompareTo(y);
+                }
+
+                return value;
+            }
+        }
+
+        private struct CustomDataStruct : IComparable<CustomDataStruct>
+        {
+            public int Priority;
+            public bool AdditionalData;
+            public int CompareTo(CustomDataStruct other)
+            {
+                return Priority.CompareTo(other.Priority);
+            }
+        }
 
         
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -193,6 +334,33 @@ namespace Tests.Editor
             //queue.Dispose();
             queue.Dispose();
         }
+        
+        [Test]
+        public void PriorityQueue_GetElement_IndexIsNegative_IndexOutOfRangeExceptionIsThrown()
+        {
+            var queue = new NativePriorityQueue<int>(Allocator.Temp, 2);
+            queue.Enqueue(4);
+            queue.Enqueue(25);
+            
+            Assert.Throws<IndexOutOfRangeException>(() =>
+            {
+                var element = queue[-1];
+            });
+        }
+        
+        [Test]
+        public void PriorityQueue_GetElement_IndexIsNTooBig_IndexOutOfRangeExceptionIsThrown()
+        {
+            var queue = new NativePriorityQueue<int>(Allocator.Temp, 2);
+            queue.Enqueue(4);
+            queue.Enqueue(25);
+
+            Assert.Throws<IndexOutOfRangeException>(() =>
+            {
+                var element = queue[3];
+            });
+        }
+
 
         
         [Test]

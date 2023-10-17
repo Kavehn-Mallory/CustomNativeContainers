@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - NativePriorityQueue that uses a comparer instead of forcing the type T to implement IComparable&lt;T&gt;
 
+## [1.1.1] - 2023-10-18
+
+### Added
+
+- Contains() function and index based lookup for priority queue
+
+### Fixed
+
+- using index based lookup will now throw an exception if the index is out of range
 
 ## [1.1.0] - 2023-10-17
 

@@ -189,8 +189,24 @@ namespace BonnFireGames.CustomNativeContainers
             }
             
         }
-        
-        internal T this[int index]
+
+        internal bool GetElement(int index, out T element)
+        {
+            if (!CheckIndex(index))
+            {
+                element = default;
+                return false;
+            }
+            element = this[index];
+            return true;
+        }
+
+        private bool CheckIndex(int index)
+        {
+            return index >= 0 && index < Length;
+        }
+
+        private T this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)] get => UnsafeUtility.ReadArrayElement<T>(m_Buffer, index);
             [WriteAccessRequired, MethodImpl(MethodImplOptions.AggressiveInlining)] set => UnsafeUtility.WriteArrayElement(m_Buffer, index, value);
