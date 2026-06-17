@@ -5,7 +5,7 @@ using Unity.Collections.LowLevel.Unsafe;
 namespace BonnFireGames.CustomNativeContainers
 {
     [NativeContainer]
-    [BurstCompatible(GenericTypeArguments = new [] { typeof(int) })]
+    [GenerateTestsForBurstCompatibility(GenericTypeArguments = new [] { typeof(int) })]
     internal struct NativePriorityQueueDispose<T> where T : unmanaged, IComparable<T>
     {
         [NativeDisableUnsafePtrRestriction]

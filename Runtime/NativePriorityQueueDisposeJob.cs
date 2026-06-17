@@ -4,7 +4,7 @@ using Unity.Jobs;
 
 namespace BonnFireGames.CustomNativeContainers
 {
-    [BurstCompatible(GenericTypeArguments = new[] { typeof(int) })]
+    [GenerateTestsForBurstCompatibility(GenericTypeArguments = new[] { typeof(int) })]
     internal struct NativePriorityQueueDisposeJob<T> : IJob where T : unmanaged, IComparable<T>
     {
         internal NativePriorityQueueDispose<T> Data;

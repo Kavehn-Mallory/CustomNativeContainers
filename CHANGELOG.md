@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - NativePriorityQueue that uses a comparer instead of forcing the type T to implement IComparable&lt;T&gt;
 
+## [2.0.0] - 2026-06-17
+
+### Added 
+- NativeEventStream
+- NativeGrid
+- NativeQuadTree
+- Performance tests for NativeEventStream 
+
+### Changed
+- Updated project to Unity 6000.3.8f1
+
 ## [1.1.1] - 2023-10-18
 
 ### Added

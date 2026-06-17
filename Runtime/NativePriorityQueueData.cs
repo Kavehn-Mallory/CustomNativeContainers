@@ -9,7 +9,7 @@ using Unity.Jobs.LowLevel.Unsafe;
 
 namespace BonnFireGames.CustomNativeContainers
 {
-    [BurstCompatible(GenericTypeArguments = new[] { typeof(int) })]
+    [GenerateTestsForBurstCompatibility(GenericTypeArguments = new[] { typeof(int) })]
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct NativePriorityQueueData<T> where T : unmanaged, IComparable<T>
     {
@@ -24,7 +24,7 @@ namespace BonnFireGames.CustomNativeContainers
         
         
 
-        [BurstCompatible(GenericTypeArguments = new [] { typeof(int) })]
+        [GenerateTestsForBurstCompatibility(GenericTypeArguments = new [] { typeof(int) })]
         internal static unsafe void AllocateQueue(ref AllocatorManager.AllocatorHandle allocator, int initialCapacity, out NativePriorityQueueData<T>* outBuf)
         {
             var state = (NativePriorityQueueData<T>*)UnsafeUtility.MallocTracked(

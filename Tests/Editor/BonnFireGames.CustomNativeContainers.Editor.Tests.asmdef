@@ -6,7 +6,8 @@
         "UnityEditor.TestRunner",
         "BonnFireGames.CustomNativeContainers",
         "Unity.Burst",
-        "Unity.Collections"
+        "Unity.Collections",
+        "Unity.Mathematics"
     ],
     "includePlatforms": [
         "Editor"

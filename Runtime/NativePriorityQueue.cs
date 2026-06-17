@@ -28,7 +28,7 @@ namespace BonnFireGames.CustomNativeContainers
     //[NativeContainerSupportsDeallocateOnJobCompletion]
     //[NativeContainerSupportsMinMaxWriteRestriction]
     [NativeContainer]
-    [BurstCompatible(GenericTypeArguments = new [] { typeof(int) })]
+    [GenerateTestsForBurstCompatibility(GenericTypeArguments = new [] { typeof(int) })]
     public unsafe struct NativePriorityQueue<T> : INativeDisposable where T : unmanaged, IComparable<T>
     {
         // Raw pointers aren't usually allowed inside structures that are passed to jobs, but because it's protected
