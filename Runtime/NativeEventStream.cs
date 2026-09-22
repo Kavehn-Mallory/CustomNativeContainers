@@ -21,34 +21,35 @@ namespace BonnFireGames.CustomNativeContainers
         [NativeDisableUnsafePtrRestriction]
         private UnsafeEventStream<T>* _eventStream;
         
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
         AtomicSafetyHandle m_Safety;
 
         static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<NativeEventStream<T>>();
-
+#endif
 
 
         public NativeEventStream(AllocatorManager.AllocatorHandle handle, int blockSize = SmallBlockSize,
             int initialBlockCount = 16, bool dynamicAllocations = true, bool dynamicResize = true)
         {
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
             m_Safety = CollectionHelper.CreateSafetyHandle(handle);
 
             InitNativeContainer(m_Safety);
             CollectionHelper.SetStaticSafetyId<NativeEventStream<T>>(ref m_Safety, ref s_staticSafetyId.Data);
-
+#endif
 
             _eventStream = UnsafeEventStream<T>.Allocate(handle, blockSize, initialBlockCount, dynamicAllocations,
                 dynamicResize);
         }
         
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
         [GenerateTestsForBurstCompatibility(RequiredUnityDefine = "ENABLE_UNITY_COLLECTIONS_CHECKS", GenericTypeArguments = new[] { typeof(NativeArray<int>) })]
         internal static void InitNativeContainer(AtomicSafetyHandle handle)
         {
             if (UnsafeUtility.IsNativeContainerType<T>())
                 AtomicSafetyHandle.SetNestedContainer(handle, true);
         }
+#endif
 
 
         [BurstCompile]
@@ -82,12 +83,12 @@ namespace BonnFireGames.CustomNativeContainers
         
         public void Dispose()
         {
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
             if (!AtomicSafetyHandle.IsDefaultValue(m_Safety))
             {
                 AtomicSafetyHandle.CheckExistsAndThrow(m_Safety);
             }
-
+#endif
             if (!IsCreated)
             {
                 return;
@@ -108,9 +109,9 @@ namespace BonnFireGames.CustomNativeContainers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void CheckWrite()
         {
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
-
+#endif
         }
 
         public Reader AllocateReader()
@@ -123,20 +124,20 @@ namespace BonnFireGames.CustomNativeContainers
         public struct Reader : INativeDisposable
         {
 
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
             internal AtomicSafetyHandle m_Safety;
             internal static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<Reader>();
-
+#endif
 
             [NativeDisableUnsafePtrRestriction]
             internal UnsafeEventStream<T>.Reader* UnsafeReader;
 
             public Reader(ref NativeEventStream<T> stream)
             {
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
                 m_Safety = stream.m_Safety;
                 CollectionHelper.SetStaticSafetyId(ref m_Safety, ref s_staticSafetyId.Data, "Unity.Collections.NativeStream.Reader");
-
+#endif
                 UnsafeReader = UnsafeEventStream<T>.AllocateReader(stream._eventStream);
 
             }
@@ -172,7 +173,9 @@ namespace BonnFireGames.CustomNativeContainers
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             readonly void CheckRead()
             {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
                 AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
+#endif
             }
 
             public void Dispose()
@@ -195,9 +198,11 @@ namespace BonnFireGames.CustomNativeContainers
         public ParallelWriter AsParallelWriter()
         {
             ParallelWriter writer;
-            
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
             writer.m_Safety = m_Safety;
             CollectionHelper.SetStaticSafetyId<ParallelWriter>(ref writer.m_Safety, ref ParallelWriter.s_staticSafetyId.Data);
+#endif
             writer.unsafeWriter = _eventStream->AsParallelWriter();
 
             return writer;
@@ -218,10 +223,12 @@ namespace BonnFireGames.CustomNativeContainers
         {
             [NativeDisableUnsafePtrRestriction]
             internal UnsafeEventStream<T>.ParallelWriter unsafeWriter;
-            
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
             internal AtomicSafetyHandle m_Safety;
             internal static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<ParallelWriter>();
             
+#endif
             
             
             /// <summary>
@@ -231,7 +238,9 @@ namespace BonnFireGames.CustomNativeContainers
             [BurstCompile]
             public long Enqueue(T value)
             {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
                 AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
+#endif
                 return unsafeWriter.Enqueue(value);
             }
 
@@ -243,7 +252,9 @@ namespace BonnFireGames.CustomNativeContainers
             [BurstCompile]
             public long Enqueue(T value, out int threadIndex)
             {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
                 AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
+#endif
                 threadIndex = unsafeWriter.ThreadIndex;
                 return unsafeWriter.Enqueue(value);
             }
@@ -256,7 +267,9 @@ namespace BonnFireGames.CustomNativeContainers
             [BurstCompile]
             public long Enqueue(T value, int threadIndexOverride)
             {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
                 AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
+#endif
                 return unsafeWriter.Enqueue(value, threadIndexOverride);
             }
             

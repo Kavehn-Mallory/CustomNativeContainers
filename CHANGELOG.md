@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Removed all guards for AtomicSafetyHandles, following the NativeArray implementation (AtomicSafetyHandle calls should be stripped automatically)
+- Added remaining guards in dispose method, hopefully done now
 
 ### Changed 
 

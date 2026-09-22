@@ -37,11 +37,12 @@ namespace BonnFireGames.CustomNativeContainers
         [NativeDisableUnsafePtrRestriction] internal NativePriorityQueueData<T>* m_Buffer;
         internal AllocatorManager.AllocatorHandle AllocatorHandle;
         
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
         internal AtomicSafetyHandle m_Safety;
         
         // Statically register this type with the safety system, using a name derived from the type itself
         internal static int s_staticSafetyId;
+#endif
         
 
         
@@ -53,7 +54,7 @@ namespace BonnFireGames.CustomNativeContainers
             
             NativePriorityQueueData<T>.AllocateQueue(ref allocator, capacity, out m_Buffer);
             
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
             // Create the AtomicSafetyHandle and DisposeSentinel
             m_Safety = AtomicSafetyHandle.Create();
             
@@ -65,11 +66,11 @@ namespace BonnFireGames.CustomNativeContainers
             // Check if this is a nested container, and if so, set the nested container flag
             if (UnsafeUtility.IsNativeContainerType<T>()) 
                 AtomicSafetyHandle.SetNestedContainer(m_Safety, true);
-
+#endif
         }
     
         
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
         [BurstDiscard]
         private static void InitStaticSafetyId(ref AtomicSafetyHandle handle)
         {
@@ -77,18 +78,18 @@ namespace BonnFireGames.CustomNativeContainers
                 s_staticSafetyId = AtomicSafetyHandle.NewStaticSafetyId<NativePriorityQueue<T>>();
             AtomicSafetyHandle.SetStaticSafetyId(ref handle, s_staticSafetyId);
         }
-
+#endif
         
         public int Length
         {
             get
             {
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
                 // Check that you are allowed to read information about the container 
                 // This throws InvalidOperationException if you aren't allowed to read from the native container,
                 // or if the native container has been disposed
                 AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
-
+#endif
                 return m_Buffer->Length;
             }
         }
@@ -97,12 +98,12 @@ namespace BonnFireGames.CustomNativeContainers
         {
             get
             {
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
                 // Check that you are allowed to read information about the container 
                 // This throws InvalidOperationException if you aren't allowed to read from the native container,
                 // or if the native container has been disposed
                 AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
-
+#endif
                 return m_Buffer->Capacity;
             }
         }
@@ -121,10 +122,13 @@ namespace BonnFireGames.CustomNativeContainers
             // to happen in a thread. DisposeSentinel needs to be cleared on main thread.
             // AtomicSafetyHandle can be destroyed after the job was scheduled (Job scheduling
             // will check that no jobs are writing to the container).
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
             
+   
             //code from NativeArray. Seems to be pretty thorough 
             if (this.AllocatorHandle.ToAllocator != Allocator.None && !AtomicSafetyHandle.IsDefaultValue(in this.m_Safety))
                 AtomicSafetyHandle.CheckExistsAndThrow(in this.m_Safety);
+#endif   
             if (!this.IsCreated)
                 return inputDeps;
             if (this.AllocatorHandle.ToAllocator >= Allocator.FirstUserIndex)
@@ -137,13 +141,15 @@ namespace BonnFireGames.CustomNativeContainers
                     {
                         Data = this.m_Buffer,
                         AllocatorHandle = this.AllocatorHandle,
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
                         m_Safety = this.m_Safety
+#endif   
                     }
                 }.Schedule<NativePriorityQueueDisposeJob<T>>(inputDeps);
                 
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.Release(m_Safety);
-
+#endif
                 this.m_Buffer = (NativePriorityQueueData<T>*) null;
                 this.AllocatorHandle = Allocator.Invalid;
                 return jobHandle;
@@ -155,10 +161,18 @@ namespace BonnFireGames.CustomNativeContainers
         [WriteAccessRequired]
         public void Dispose()
         {
-
-
+/*#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            AtomicSafetyHandle.CheckDeallocateAndThrow(m_Safety);
+            AtomicSafetyHandle.Release(m_Safety);
+#endif
+            UnsafeUtility.FreeTracked(m_Buffer, m_AllocatorLabel);
+            m_Buffer = null;
+            m_Capacity = 0;
+            m_Length = 0;*/
+#if ENABLE_UNITY_COLLECTIONS_CHECKS     
             if (this.AllocatorHandle.ToAllocator != Allocator.None && !AtomicSafetyHandle.IsDefaultValue(in this.m_Safety))
                 AtomicSafetyHandle.CheckExistsAndThrow(in this.m_Safety);
+#endif   
             if (!this.IsCreated)
                 return;
             if (this.AllocatorHandle.ToAllocator == Allocator.Invalid)
@@ -167,10 +181,10 @@ namespace BonnFireGames.CustomNativeContainers
                 throw new InvalidOperationException("The NativeArray can not be Disposed because it was allocated with a custom allocator, use CollectionHelper.Dispose in com.unity.collections package.");
             if (this.AllocatorHandle.ToAllocator > Allocator.None)
             {
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
                 AtomicSafetyHandle.CheckDeallocateAndThrow(m_Safety);
                 AtomicSafetyHandle.Release(m_Safety);
-
+#endif
                 NativePriorityQueueData<T>.DeallocateQueue(m_Buffer, AllocatorHandle);
                 this.AllocatorHandle = Allocator.Invalid;
             }
@@ -180,12 +194,12 @@ namespace BonnFireGames.CustomNativeContainers
         
         public void Enqueue(T value)
         {
-
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
             // Check that you can modify (write to) the native container right now, and if so, bump the secondary version so that
             // any views are invalidated, because you are going to change the size and pointer to the buffer
             CheckRead();
             AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(m_Safety);
-
+#endif
             m_Buffer->Enqueue(value);
 
         }
@@ -294,13 +308,17 @@ namespace BonnFireGames.CustomNativeContainers
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         private void CheckRead()
         {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
+#endif
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         private void CheckWrite()
         {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
+#endif
         }
         
         
