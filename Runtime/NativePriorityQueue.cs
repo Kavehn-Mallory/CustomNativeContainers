@@ -68,7 +68,9 @@ namespace BonnFireGames.CustomNativeContainers
                 AtomicSafetyHandle.SetNestedContainer(m_Safety, true);
 #endif
         }
+    
         
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
         [BurstDiscard]
         private static void InitStaticSafetyId(ref AtomicSafetyHandle handle)
         {
@@ -76,6 +78,7 @@ namespace BonnFireGames.CustomNativeContainers
                 s_staticSafetyId = AtomicSafetyHandle.NewStaticSafetyId<NativePriorityQueue<T>>();
             AtomicSafetyHandle.SetStaticSafetyId(ref handle, s_staticSafetyId);
         }
+#endif
         
         public int Length
         {
