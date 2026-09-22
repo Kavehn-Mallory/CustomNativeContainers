@@ -12,9 +12,8 @@ namespace BonnFireGames.CustomNativeContainers
         internal unsafe NativePriorityQueueData<T>* Data;
         internal AllocatorManager.AllocatorHandle AllocatorHandle;
         
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+
         internal AtomicSafetyHandle m_Safety;
-#endif
         public unsafe void Dispose() => NativePriorityQueueData<T>.DeallocateQueue(Data, AllocatorHandle);
     }
 }

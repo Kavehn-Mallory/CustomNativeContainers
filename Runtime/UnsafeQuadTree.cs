@@ -20,11 +20,11 @@ namespace BonnFireGames.CustomNativeContainers
     {
         
         
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+
         AtomicSafetyHandle m_Safety;
 
         static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<UnsafeQuadTree<T>>();
-#endif
+
         
         [NativeDisableUnsafePtrRestriction]
         public TreeNode* _nodes;
@@ -55,12 +55,12 @@ namespace BonnFireGames.CustomNativeContainers
             var actualData = new NativeList<T>(0, Allocator.Temp);
             _handle = handle;
             
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+
             m_Safety = CollectionHelper.CreateSafetyHandle(handle);
 
             InitNativeContainer(m_Safety);
             CollectionHelper.SetStaticSafetyId<UnsafeQuadTree<T>>(ref m_Safety, ref s_staticSafetyId.Data);
-#endif
+
             
             if (data.Length <= 0)
             {
@@ -133,14 +133,13 @@ namespace BonnFireGames.CustomNativeContainers
 
         }
         
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+
         [GenerateTestsForBurstCompatibility(RequiredUnityDefine = "ENABLE_UNITY_COLLECTIONS_CHECKS", GenericTypeArguments = new[] { typeof(NativeArray<int>) })]
         internal static void InitNativeContainer(AtomicSafetyHandle handle)
         {
             if (UnsafeUtility.IsNativeContainerType<T>())
                 AtomicSafetyHandle.SetNestedContainer(handle, true);
         }
-#endif
 
         private static void CreateTreeBottomUp(NativeArray<T>.ReadOnly data, int2 dimensions, ref NativeList<TreeNode> nodes, ref NativeList<T> elements)
         {
@@ -743,9 +742,9 @@ namespace BonnFireGames.CustomNativeContainers
             if (index < 0 || index > _nodeCount)
                 throw new IndexOutOfRangeException(
                     $"Index {index} is out of range of '{NodeCount}' Length.");
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+
             AtomicSafetyHandle.CheckReadAndThrow(this.m_Safety);
-#endif
+
         }
 
         public void Dispose()

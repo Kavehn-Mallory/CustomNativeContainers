@@ -9,9 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - NativePriorityQueue that uses a comparer instead of forcing the type T to implement IComparable&lt;T&gt;
 
+## [2.0.2] - 2026-09-22
+
+### Fixed
+
+- Removed all guards for AtomicSafetyHandles, following the NativeArray implementation (AtomicSafetyHandle calls should be stripped automatically)
+
+### Changed 
+
+- Bumped Collections version to 2.6.8
+- Bumped Burst version to 1.8.30
+
 ## [2.0.1] - 2026-09-22
 
-### Fixed 
+### Fixed
 
 - Guarded AtomicSafetyHandle usage with ENABLE_UNITY_COLLECTIONS_CHECKS to prevent builds from failing 
 
